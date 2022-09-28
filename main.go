@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/kctjohnson/jtbubbles/cmd/cli"
 
 func main() {
-	fmt.Printf("Hello, World!\n")
+	cli.Execute()
 }
