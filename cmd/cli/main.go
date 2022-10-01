@@ -23,4 +23,27 @@ func Execute() {
 	for _, board := range boards {
 		fmt.Printf("Board: %s\n", board.Name)
 	}
+
+	fmt.Print("\n\n")
+
+	epics, err := client.GetEpicsByBoard("VW")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, issue := range epics {
+		fmt.Printf("Issue: %s - %s\n", issue.Key, issue.Fields.Summary)
+	}
+	// issues, err := client.GetIssues(jira.IssueFilter{
+	// 	Board:  "VW",
+	// 	Parent: "",
+	// })
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	//
+	// for _, issue := range issues {
+	// 	fmt.Printf("Issue: %s - %s\n", issue.Key, issue.Fields.Summary)
+	// }
+
 }

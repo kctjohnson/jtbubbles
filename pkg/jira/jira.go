@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"fmt"
 	"log"
 
 	jiraAPI "github.com/andygrunwald/go-jira"
@@ -33,4 +34,32 @@ func (c *Client) GetBoardList() ([]jiraAPI.Board, error) {
 		return nil, err
 	}
 	return boards.Values, nil
+}
+
+func (c *Client) GetEpicsByBoard(boardName string) ([]jiraAPI.Issue, error) {
+	epics, _, err := c.client.Issue.Search(fmt.Sprintf("issuetype=epic AND project=%s", boardName), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return epics, nil
+}
+
+//TODO: Maybe we want to use a pointer for the Parent filter option?
+type IssueFilter struct {
+	Board  string
+	Parent string
+}
+
+func (c *Client) GetIssues(filter IssueFilter) ([]jiraAPI.Issue, error) {
+	jql := fmt.Sprintf("project=%s", filter.Board)
+	if filter.Parent != "" {
+		jql = jql + fmt.Sprintf(" AND parent=%s", filter.Parent)
+	}
+
+	issues, _, err := c.client.Issue.Search(jql, nil)
+	if err != nil {
+		return nil, err
+	}
+	return issues, nil
 }
