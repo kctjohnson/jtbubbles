@@ -1,4 +1,4 @@
-Jira tool workflow
+# Jira tool workflow
 
 - On open, check to see if there is a config file
   - If one exists, move forward
