@@ -63,17 +63,14 @@ func (m MainModel) Init() tea.Cmd {
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("Msg Type: %T\n", msg)
 	switch msg := msg.(type) {
 	case ConnectClient:
 		m.Client = jira.Client(msg)
 		if m.Client.ClientValid() {
-			log.Printf("Client valid")
 			m.state = PROJECT_SELECT
 			m.projectSelectView = projectselect.NewProjectSelectModel(m.Client)
 			return m, m.projectSelectView.Init()
 		} else {
-			log.Printf("Client Invalid")
 			m.state = FAILED_TO_CONNECT
 			return m, nil
 		}

@@ -20,16 +20,13 @@ func SelectProjectCmd(foundProject JAPI.Board) tea.Cmd {
 }
 
 func LoadProjectsCmd(client jira.Client) tea.Cmd {
-	log.Printf("Creating func")
 	return func() tea.Msg {
-		log.Printf("In created func")
 		// Get the projects associated with the account
 		var projects ProjectsLoaded
 		projects, err := client.GetBoardList()
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("Projects api call done")
 		return projects
 	}
 }
@@ -48,19 +45,17 @@ type ProjectSelectModel struct {
 	choice   JAPI.Board
 	projects []JAPI.Board
 	list     list.Model
+	width    int
+	height   int
 }
 
 func NewProjectSelectModel(client jira.Client) ProjectSelectModel {
-	log.Printf("In new proj make")
-	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "Projects"
-
 	return ProjectSelectModel{
 		client:   client,
 		cursor:   0,
 		choice:   JAPI.Board{},
 		projects: nil,
-		list:     l,
+		list:     list.Model{},
 	}
 }
 
@@ -72,13 +67,20 @@ func (m ProjectSelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case ProjectsLoaded:
+		l := list.New([]list.Item{}, list.NewDefaultDelegate(), m.width, m.height)
+		l.Title = "Projects"
+		m.list = l
 		for _, project := range msg {
-			m.list.InsertItem(99, projectListItem{
+			m.list.InsertItem(0, projectListItem{
 				item: project,
 			})
 		}
 	case tea.WindowSizeMsg:
-		m.list.SetSize(msg.Width, msg.Height)
+		m.width = msg.Width
+		m.height = msg.Height
+		if len(m.list.Items()) > 0 {
+			m.list.SetSize(msg.Width, msg.Height)
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -90,9 +92,12 @@ func (m ProjectSelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	cmds = append(cmds, cmd)
+	if len(m.list.Items()) > 0 {
+		var cmd tea.Cmd
+		m.list, cmd = m.list.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
 	return m, tea.Batch(cmds...)
 }
 
