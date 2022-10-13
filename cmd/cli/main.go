@@ -14,11 +14,26 @@ import (
 type ModelState int
 
 const (
-	PROJECT_SELECT ModelState = iota
+	INITIAL_LOAD ModelState = iota
+	FAILED_TO_CONNECT
+	PROJECT_SELECT
 	ISSUE_VIEW
 )
 
+type ConnectClient jira.Client
+
+func ConnectClientCmd() tea.Msg {
+	username := os.Getenv("USERNAME")
+	url := os.Getenv("JIRA_URL")
+	apiToken := os.Getenv("API_TOKEN")
+
+	var client jira.Client
+	client.Connect(apiToken, username, url)
+	return ConnectClient(client)
+}
+
 type FoundProject JAPI.Board
+
 func FoundProjectCmd(foundProject JAPI.Board) tea.Cmd {
 	return func() tea.Msg {
 		return FoundProject(foundProject)
@@ -26,50 +41,43 @@ func FoundProjectCmd(foundProject JAPI.Board) tea.Cmd {
 }
 
 type MainModel struct {
-	Projects          []JAPI.Board
-	Epics             []JAPI.Issue
 	Client            jira.Client
 	cursor            int
 	choice            JAPI.Board
 	state             ModelState
 	projectSelectView projectselect.ProjectSelectModel
-	//issueView         IssueModel
 }
 
 func InitialModel() MainModel {
-	username := os.Getenv("USERNAME")
-	url := os.Getenv("JIRA_URL")
-	apiToken := os.Getenv("API_TOKEN")
-
-	var client jira.Client
-	client.Connect(apiToken, username, url)
-	boards, err := client.GetBoardList()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	epics, err := client.GetEpicsByBoard("VW")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return MainModel{
-		Projects:          boards,
-		Epics:             epics,
-		Client:            client,
-		cursor:            0,
-		choice:            JAPI.Board{},
-		state:             PROJECT_SELECT,
-		projectSelectView: projectselect.NewProjectSelectModel(client),
+		Client: jira.Client{},
+		cursor: 0,
+		choice: JAPI.Board{},
+		state:  INITIAL_LOAD,
+		projectSelectView: projectselect.ProjectSelectModel{},
 	}
 }
 
 func (m MainModel) Init() tea.Cmd {
-	return nil
+	return ConnectClientCmd
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	log.Printf("Msg Type: %T\n", msg)
 	switch msg := msg.(type) {
+	case ConnectClient:
+		m.Client = jira.Client(msg)
+		if m.Client.ClientValid() {
+			log.Printf("Client valid")
+			m.state = PROJECT_SELECT
+			m.projectSelectView = projectselect.NewProjectSelectModel(m.Client)
+			return m, m.projectSelectView.Init()
+		} else {
+			log.Printf("Client Invalid")
+			m.state = FAILED_TO_CONNECT
+			return m, nil
+		}
+
 	case projectselect.SelectProject:
 		log.Printf("Selected Project: %s\n", msg.Name)
 	case tea.KeyMsg:
@@ -93,6 +101,10 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m MainModel) View() string {
 	switch m.state {
+	case INITIAL_LOAD:
+		return "Connecting to Jira..."
+	case FAILED_TO_CONNECT:
+		return "Failed to connect to Jira! Check config settings!"
 	case PROJECT_SELECT:
 		return m.projectSelectView.View()
 	case ISSUE_VIEW:
@@ -109,7 +121,7 @@ func Execute() {
 	}
 	defer f.Close()
 
-	p := tea.NewProgram(InitialModel())
+	p := tea.NewProgram(InitialModel(), tea.WithAltScreen())
 	if m, err := p.StartReturningModel(); err != nil {
 		fmt.Printf("Error: %s", err)
 		os.Exit(1)

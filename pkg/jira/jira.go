@@ -28,6 +28,10 @@ func (c *Client) Connect(apiToken string, username string, url string) {
 	}
 }
 
+func (c Client) ClientValid() bool {
+	return c.client != nil
+}
+
 func (c *Client) GetBoardList() ([]jiraAPI.Board, error) {
 	boards, _, err := c.client.Board.GetAllBoards(nil)
 	if err != nil {
